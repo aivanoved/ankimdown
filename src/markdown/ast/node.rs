@@ -136,6 +136,7 @@ impl Node {
                 content,
                 subnodes,
             } => {
+                result.push("│ ".repeat(level).to_string());
                 result.push(format!("{}Heading: #H{}", indent(level), *h_level,));
                 for text in content {
                     result.push(format!("{}Text: {}", indent(level + 1), text));

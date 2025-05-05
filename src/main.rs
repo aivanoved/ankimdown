@@ -38,5 +38,6 @@ fn main() {
         }],
     }]);
 
-    println!("{}", sample_markdown_ast.tree_to_string())
+    println!("{}", sample_markdown_ast.tree_to_string());
+    println!("{:#?}", sample_markdown_ast)
 }
