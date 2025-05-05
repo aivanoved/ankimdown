@@ -114,10 +114,11 @@ impl Node {
     fn tree_view(level: usize, node: &Node) -> String {
         let mut result = Vec::new();
         fn indent(level: usize) -> String {
-            match level {
-                0 => "".to_string(),
-                1 => "├─".to_string(),
-                _ => "│ ".repeat(level - 1) + "├─",
+            if level == 0 {
+                return "".to_string();
+            } else if level == 1 {
+                return "├-".to_string();
+            } else {
             }
         }
         match node {
@@ -152,14 +153,7 @@ impl Node {
                 order,
                 subnodes,
             } => {
-                match order {
-                    ListOrderType::Unordered => {
-                        result.push(format!("{}ListItem: Unordered", indent(level)));
-                    }
-                    ListOrderType::Ordered(num) => {
-                        result.push(format!("{}ListItem: Ordered {}", indent(level), num));
-                    }
-                }
+                result.push(format!("{}ListItem: {}", indent(level), order));
                 result.push(format!(
                     "{}Text: {}",
                     indent(level + 1),

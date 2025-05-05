@@ -1,27 +1,42 @@
-use ankimdown::markdown::util::log_markdown_events;
+use ankimdown::markdown::ast::node::*;
 
-const SAMPLE_MARKDOWN_DECK: &str = r#"
-# Deck name
-This is a sample description
-
-## Deck metadata:
-
-- Maps:
-    - Description: Meaning
-
-# hello
-## Meaning
-1. a greeting
-
-## Metadata
-
-- Templates:
-    - Simple
-    - Reverse
-- Autogen:
-    - id: 0
-"#;
+// const SAMPLE_MARKDOWN_DECK: &str = r#"
+// # Deck name
+//
+// ## Deck metadata:
+//
+// - Maps:
+//     - Description: Meaning
+//
+// # hello
+// ## Meaning
+// 1. a greeting
+//
+// ## Metadata
+//
+// - Templates:
+//     - Simple
+//     - Reverse
+// - Autogen:
+//     - id: 0
+// "#;
 
 fn main() {
-    log_markdown_events(SAMPLE_MARKDOWN_DECK);
+    let sample_markdown_ast: Node = Node::Document(vec![Node::Heading {
+        level: 1,
+        content: vec![Text::Plain("Deck name".to_string())],
+        subnodes: vec![Node::Heading {
+            level: 2,
+            content: vec![Text::Plain("Deck metadata:".to_string())],
+            subnodes: vec![Node::List {
+                items: vec![Node::ListItem {
+                    text: vec![Text::Plain("Maps:".to_string())],
+                    order: ListOrderType::Unordered,
+                    subnodes: vec![],
+                }],
+            }],
+        }],
+    }]);
+
+    println!("{}", sample_markdown_ast.tree_to_string())
 }
