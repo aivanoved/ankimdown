@@ -111,24 +111,22 @@ impl Node {
         Ok(())
     }
 
-    fn tree_view(level: usize, node: &Node) -> String {
+    fn tree_view(level: usize, node: &Node, last: bool) -> String {
         let mut result = Vec::new();
-        fn indent(level: usize) -> String {
+        fn indent(level: usize, last: bool) -> String {
+            let branch = if last { "└─" } else { "├─" };
             match level {
                 0 => "".to_string(),
-                1 => "├─".to_string(),
-                _ => "│ ".repeat(level - 1) + "├─",
+                1 => branch.to_string(),
+                _ => "  ".repeat(level - 1) + branch,
             }
         }
         match node {
             Node::Document(nodes) => {
-                if level > 0 {
-                    result.push(format!("{}Document", indent(level)));
-                } else {
-                    result.push("Document".to_string());
-                }
-                for node in nodes {
-                    result.push(Self::tree_view(level + 1, node));
+                result.push(format!("{}Document", indent(level, last)));
+                let size = nodes.len();
+                for (idx, node) in nodes.iter().enumerate() {
+                    result.push(Self::tree_view(level + 1, node, idx == size - 1));
                 }
             }
             Node::Heading {
@@ -136,17 +134,23 @@ impl Node {
                 content,
                 subnodes,
             } => {
-                result.push("│ ".repeat(level).to_string());
-                result.push(format!("{}Heading: #H{}", indent(level), *h_level,));
-                for text in content {
-                    result.push(format!("{}Text: {}", indent(level + 1), text));
-                }
-                for subnode in subnodes {
-                    result.push(Self::tree_view(level + 1, subnode));
+                result.push(format!("{}Heading: #H{}", indent(level, last), *h_level,));
+                result.push(format!(
+                    "{}Text: {}",
+                    indent(level + 1, subnodes.is_empty()),
+                    content
+                        .iter()
+                        .map(|text| text.to_string())
+                        .collect::<Vec<_>>()
+                        .join("")
+                ));
+                let size = subnodes.len();
+                for (idx, subnode) in subnodes.iter().enumerate() {
+                    result.push(Self::tree_view(level + 1, subnode, idx == size - 1));
                 }
             }
             Node::Text(text) => {
-                result.push(format!("{}Text: {}", indent(level), text));
+                result.push(format!("{}Text: {}", indent(level, last), text));
             }
             Node::ListItem {
                 text,
@@ -155,27 +159,29 @@ impl Node {
             } => {
                 match order {
                     ListOrderType::Unordered => {
-                        result.push(format!("{}ListItem: Unordered", indent(level)));
+                        result.push(format!("{}ListItem: Unordered", indent(level, last)));
                     }
                     ListOrderType::Ordered(num) => {
-                        result.push(format!("{}ListItem: Ordered {}", indent(level), num));
+                        result.push(format!("{}ListItem: Ordered {}", indent(level, last), num));
                     }
                 }
                 result.push(format!(
                     "{}Text: {}",
-                    indent(level + 1),
+                    indent(level + 1, subnodes.is_empty()),
                     text.iter()
                         .map(|t| t.to_string())
                         .collect::<Vec<_>>()
                         .join("")
                 ));
-                for node in subnodes {
-                    result.push(Self::tree_view(level + 1, node));
+                let size = subnodes.len();
+                for (idx, node) in subnodes.iter().enumerate() {
+                    result.push(Self::tree_view(level + 1, node, idx == size - 1));
                 }
             }
             Node::List { items } => {
-                for item in items {
-                    result.push(Self::tree_view(level, item));
+                let size = items.len();
+                for (idx, item) in items.iter().enumerate() {
+                    result.push(Self::tree_view(level, item, idx == size - 1));
                 }
             }
         };
@@ -183,6 +189,6 @@ impl Node {
     }
 
     pub fn tree_to_string(&self) -> String {
-        Self::tree_view(0, self)
+        Self::tree_view(0, self, true)
     }
 }

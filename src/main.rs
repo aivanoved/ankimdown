@@ -1,4 +1,4 @@
-use ankimdown::markdown::ast::node::*;
+use ankimdown::markdown::ast::*;
 
 // const SAMPLE_MARKDOWN_DECK: &str = r#"
 // # Deck name
