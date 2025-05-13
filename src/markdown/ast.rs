@@ -132,14 +132,19 @@ impl std::fmt::Display for Text {
 }
 
 #[derive(Debug, Clone)]
+pub struct Heading {
+    pub level: usize,
+    content: Vec<Text>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Node {
     Document {
         subnodes: Vec<Node>,
     },
     Text(Text),
     Heading {
-        level: usize,
-        content: Vec<Text>,
+        heading: Heading,
         subnodes: Vec<Node>,
     },
     // Paragraph {
@@ -154,6 +159,13 @@ impl std::fmt::Display for Node {
 }
 
 impl Node {
+    pub fn try_from_events(events: &mut Iter<Event>) -> Result<Self, String> {
+        let mut events_cloned = events.clone();
+        let mut take = 0 as usize;
+
+        todo!();
+    }
+
     fn write_indented(
         f: &mut std::fmt::Formatter<'_>,
         node: &Node,
@@ -166,8 +178,11 @@ impl Node {
                 }
             }
             Node::Heading {
-                level: h_level,
-                content,
+                heading:
+                    Heading {
+                        level: h_level,
+                        content,
+                    },
                 subnodes,
             } => {
                 write!(f, "{:indent$}{} ", "", "#".repeat(*h_level), indent = level)?;
@@ -205,8 +220,11 @@ impl Node {
                 }
             }
             Node::Heading {
-                level: h_level,
-                content,
+                heading:
+                    Heading {
+                        level: h_level,
+                        content,
+                    },
                 subnodes,
             } => {
                 result.push(format!("{}Heading: #H{}", indent(level, last), *h_level,));
@@ -244,8 +262,10 @@ mod tests {
     fn test_write_indented() {
         let node = Node::Document {
             subnodes: vec![Node::Heading {
-                level: 1,
-                content: vec![Text::Plain(vec![SimpleText::Simple("Heading".to_string())])],
+                heading: Heading {
+                    level: 1,
+                    content: vec![Text::Plain(vec![SimpleText::Simple("Heading".to_string())])],
+                },
                 subnodes: vec![],
             }],
         };
