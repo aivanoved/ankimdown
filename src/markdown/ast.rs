@@ -192,3 +192,36 @@ impl Node {
         Self::tree_view(0, self, true)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_indented() {
+        let node = Node::Document(vec![
+            Node::Heading {
+                level: 1,
+                content: vec![Text::Plain("Heading".to_string())],
+                subnodes: vec![],
+            },
+            Node::ListItem {
+                text: vec![Text::Plain("Item 1".to_string())],
+                order: ListOrderType::Unordered,
+                subnodes: vec![],
+            },
+            Node::ListItem {
+                text: vec![Text::Plain("Item 2".to_string())],
+                order: ListOrderType::Ordered(1),
+                subnodes: vec![],
+            },
+        ]);
+
+        let expected = "# Heading\n\
+                       - Item 1\n\
+                       1. Item 2\n";
+
+        let output = format!("{}", node);
+        assert_eq!(output, expected);
+    }
+}
