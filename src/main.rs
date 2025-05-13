@@ -22,21 +22,23 @@ use ankimdown::markdown::ast::*;
 // "#;
 
 fn main() {
-    let sample_markdown_ast: Node = Node::Document(vec![Node::Heading {
-        level: 1,
-        content: vec![Text::Plain("Deck name".to_string())],
+    let sample_markdown_ast: Node = Node::Document {
         subnodes: vec![Node::Heading {
-            level: 2,
-            content: vec![Text::Plain("Deck metadata:".to_string())],
-            subnodes: vec![Node::List {
-                items: vec![Node::ListItem {
-                    text: vec![Text::Plain("Maps:".to_string())],
-                    order: ListOrderType::Unordered,
-                    subnodes: vec![],
+            level: 1,
+            content: vec![Text::Plain("Deck name".to_string())],
+            subnodes: vec![Node::Heading {
+                level: 2,
+                content: vec![Text::Plain("Deck metadata:".to_string())],
+                subnodes: vec![Node::List {
+                    subnodes: vec![Node::ListItem {
+                        text: vec![Text::Plain("Maps:".to_string())],
+                        order: ListOrderType::Unordered,
+                        subnodes: vec![],
+                    }],
                 }],
             }],
         }],
-    }]);
+    };
 
     println!("{}", sample_markdown_ast.tree_to_string());
     println!("{:#?}", sample_markdown_ast)

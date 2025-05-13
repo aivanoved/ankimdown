@@ -1,3 +1,7 @@
+use std::iter::Peekable;
+
+use pulldown_cmark;
+
 #[derive(Debug, Clone)]
 pub enum Text {
     Plain(String),
@@ -36,7 +40,9 @@ impl std::fmt::Display for ListOrderType {
 
 #[derive(Debug, Clone)]
 pub enum Node {
-    Document(Vec<Node>),
+    Document {
+        subnodes: Vec<Node>,
+    },
     Heading {
         level: usize,
         content: Vec<Text>,
@@ -49,7 +55,7 @@ pub enum Node {
         subnodes: Vec<Node>,
     },
     List {
-        items: Vec<Node>,
+        subnodes: Vec<Node>,
     },
 }
 
@@ -60,13 +66,16 @@ impl std::fmt::Display for Node {
 }
 
 impl Node {
+    pub fn from_events(events: pulldown_cmark::Parser) -> Self {
+        todo!()
+    }
     fn write_indented(
         f: &mut std::fmt::Formatter<'_>,
         node: &Node,
         level: usize,
     ) -> std::fmt::Result {
         match node {
-            Node::Document(subnodes) => {
+            Node::Document { subnodes } => {
                 for subnode in subnodes {
                     Self::write_indented(f, subnode, level)?;
                 }
@@ -102,7 +111,7 @@ impl Node {
                     Self::write_indented(f, subnode, level + 1)?;
                 }
             }
-            Node::List { items } => {
+            Node::List { subnodes: items } => {
                 for item in items {
                     Self::write_indented(f, item, level)?;
                 }
@@ -122,10 +131,10 @@ impl Node {
             }
         }
         match node {
-            Node::Document(nodes) => {
+            Node::Document { subnodes } => {
                 result.push(format!("{}Document", indent(level, last)));
-                let size = nodes.len();
-                for (idx, node) in nodes.iter().enumerate() {
+                let size = subnodes.len();
+                for (idx, node) in subnodes.iter().enumerate() {
                     result.push(Self::tree_view(level + 1, node, idx == size - 1));
                 }
             }
@@ -178,7 +187,7 @@ impl Node {
                     result.push(Self::tree_view(level + 1, node, idx == size - 1));
                 }
             }
-            Node::List { items } => {
+            Node::List { subnodes: items } => {
                 let size = items.len();
                 for (idx, item) in items.iter().enumerate() {
                     result.push(Self::tree_view(level, item, idx == size - 1));
@@ -199,23 +208,25 @@ mod tests {
 
     #[test]
     fn test_write_indented() {
-        let node = Node::Document(vec![
-            Node::Heading {
-                level: 1,
-                content: vec![Text::Plain("Heading".to_string())],
-                subnodes: vec![],
-            },
-            Node::ListItem {
-                text: vec![Text::Plain("Item 1".to_string())],
-                order: ListOrderType::Unordered,
-                subnodes: vec![],
-            },
-            Node::ListItem {
-                text: vec![Text::Plain("Item 2".to_string())],
-                order: ListOrderType::Ordered(1),
-                subnodes: vec![],
-            },
-        ]);
+        let node = Node::Document {
+            subnodes: vec![
+                Node::Heading {
+                    level: 1,
+                    content: vec![Text::Plain("Heading".to_string())],
+                    subnodes: vec![],
+                },
+                Node::ListItem {
+                    text: vec![Text::Plain("Item 1".to_string())],
+                    order: ListOrderType::Unordered,
+                    subnodes: vec![],
+                },
+                Node::ListItem {
+                    text: vec![Text::Plain("Item 2".to_string())],
+                    order: ListOrderType::Ordered(1),
+                    subnodes: vec![],
+                },
+            ],
+        };
 
         let expected = "# Heading\n\
                        - Item 1\n\
