@@ -1,11 +1,9 @@
 use std::slice::Iter;
 
-use pulldown_cmark::Event;
+use pulldown_cmark::{Event, Tag, TagEnd};
 
 use crate::markdown::heading::Heading;
 use crate::markdown::text::Text;
-
-use super::heading;
 
 #[derive(Debug, Clone)]
 pub enum Node {
@@ -24,22 +22,65 @@ pub enum Node {
 
 impl Node {
     fn try_event_paragraph(events: &mut Iter<Event>) -> Result<Self, String> {
+        let mut events_clone = events.clone();
+        let mut take = 0 as usize;
+
+        let paragraph_event = events_clone
+            .next()
+            .ok_or("Not paragraph start".to_string())?;
+
+        match paragraph_event {
+            Event::Start(Tag::Paragraph) => {}
+            _ => return Err("Not a paragraph".to_string()),
+        }
+
+        take += 1;
+
+        let mut text_nodes = vec![];
+
+        while let Ok(text) = Text::try_from_events(&mut events_clone) {
+            text_nodes.push(Node::Text(text));
+            take += 1;
+        }
+
+        let paragraph_end = events_clone.next().ok_or("No end event")?;
+
+        match paragraph_end {
+            Event::End(TagEnd::Paragraph) => {
+                let _ = events.take(take);
+                Ok(Node::Paragraph {
+                    subnodes: text_nodes,
+                })
+            }
+            _ => Err("No paragraph end".to_string()),
+        }
+    }
+
+    fn try_event_header(
+        events: &mut Iter<Event>,
+        min_level: Option<usize>,
+    ) -> Result<Self, String> {
         todo!()
     }
 
-    pub fn try_from_events(events: &mut Iter<Event>) -> Result<Self, String> {
+    pub fn try_events(
+        events: &mut Iter<Event>,
+        min_level: Option<usize>,
+    ) -> Result<Vec<Node>, String> {
         let mut nodes = vec![];
         while events.len() > 0 {
             if let Ok(paragraph) = Self::try_event_paragraph(events) {
                 nodes.push(paragraph);
-            } else if let Ok(heading) = Self::try_event_paragraph(events) {
+            } else if let Ok(heading) = Self::try_event_header(events, min_level) {
                 nodes.push(heading);
             } else {
                 return Err("Unsupported main node".to_string());
             }
         }
-        Ok(Self::Document { subnodes: nodes })
+
+        Ok(nodes)
     }
+
     fn write_indented(
         f: &mut std::fmt::Formatter<'_>,
         node: &Node,
