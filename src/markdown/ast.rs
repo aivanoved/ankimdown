@@ -1,40 +1,133 @@
-use std::iter::Peekable;
+use std::slice::Iter;
 
-use pulldown_cmark;
+use pulldown_cmark::{Event, Tag};
+
+use crate::markdown::util::check_matching_tags;
 
 #[derive(Debug, Clone)]
-pub enum Text {
-    Plain(String),
-    Bold(String),
-    Italic(String),
-    Underline(String),
-    Strikethrough(String),
+pub enum SimpleText {
+    Simple(String),
+    SoftBreak,
+    HardBreak,
 }
 
-impl std::fmt::Display for Text {
+impl std::fmt::Display for SimpleText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Text::Plain(text) => write!(f, "{}", text),
-            Text::Bold(text) => write!(f, "**{}**", text),
-            Text::Italic(text) => write!(f, "*{}*", text),
-            Text::Underline(text) => write!(f, "__{}__", text),
-            Text::Strikethrough(text) => write!(f, "~~{}~~", text),
+            Self::Simple(txt) => write!(f, "{}", txt),
+            Self::SoftBreak => write!(f, "\n"),
+            Self::HardBreak => write!(f, "\\\n"),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum ListOrderType {
-    Unordered,
-    Ordered(usize),
+pub enum Text {
+    Plain(Vec<SimpleText>),
+    Bold(Vec<SimpleText>),
+    Italic(Vec<SimpleText>),
+    Strikethrough(Vec<SimpleText>),
 }
 
-impl std::fmt::Display for ListOrderType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ListOrderType::Unordered => write!(f, "-"),
-            ListOrderType::Ordered(num) => write!(f, "{}.", num),
+impl Text {
+    pub fn try_from_events(events: &mut Iter<Event>) -> Result<Self, String> {
+        let mut take: usize = 0;
+
+        let mut events_cloned = events.clone();
+
+        let event = events_cloned
+            .next()
+            .ok_or("Expected nonempty iterator".to_string())?;
+
+        take += 1;
+
+        let tag = match event {
+            Event::Text(txt) => {
+                let _ = events.nth(take - 1);
+                return Ok(Self::Plain(vec![SimpleText::Simple(txt.to_string())]));
+            }
+            Event::HardBreak => {
+                let _ = events.nth(take - 1);
+                return Ok(Text::Plain(vec![SimpleText::HardBreak]));
+            }
+            Event::SoftBreak => {
+                let _ = events.nth(take - 1);
+                return Ok(Text::Plain(vec![SimpleText::SoftBreak]));
+            }
+            Event::Start(tag) => tag,
+            _ => return Err("Unable to parse".to_string()),
+        };
+
+        match tag {
+            Tag::Emphasis | Tag::Strong | Tag::Strikethrough => {}
+            _ => return Err("Unexpected tag".to_string()),
+        };
+
+        let mut closed = false;
+
+        let mut inner_text = vec![];
+
+        while let Some(event) = events_cloned.next() {
+            match event {
+                Event::Text(txt) => {
+                    inner_text.push(SimpleText::Simple(txt.to_string()));
+                }
+                Event::HardBreak => inner_text.push(SimpleText::HardBreak),
+                Event::SoftBreak => inner_text.push(SimpleText::SoftBreak),
+                Event::End(tag_end) => {
+                    if !check_matching_tags(&tag, &tag_end) {
+                        return Err("Tags are not matching".to_string());
+                    } else {
+                        closed = true
+                    }
+                    take += 1;
+                    break;
+                }
+                _ => return Err("Unable to parse again".to_string()),
+            };
+            take += 1;
         }
+
+        if !closed {
+            return Err("Tag left unclosed".to_string());
+        }
+
+        match tag {
+            Tag::Emphasis => {
+                let _ = events.nth(take - 1);
+                Ok(Text::Italic(inner_text))
+            }
+            Tag::Strikethrough => {
+                let _ = events.nth(take - 1);
+                Ok(Text::Strikethrough(inner_text))
+            }
+            Tag::Strong => {
+                let _ = events.nth(take - 1);
+                Ok(Text::Bold(inner_text))
+            }
+            _ => Err("Invalid text tag".to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for Text {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (surround, text) = match self {
+            Text::Plain(txt) => (None, txt),
+            Text::Bold(txt) => (Some("**"), txt),
+            Text::Italic(txt) => (Some("_"), txt),
+            Text::Strikethrough(txt) => (Some("~~"), txt),
+        };
+
+        let inner_text = text
+            .iter()
+            .map(|txt| format!("{}", txt))
+            .collect::<Vec<String>>()
+            .join("");
+
+        let sep = surround.unwrap_or("");
+
+        write!(f, "{sep}{inner_text}{sep}")
     }
 }
 
@@ -43,20 +136,15 @@ pub enum Node {
     Document {
         subnodes: Vec<Node>,
     },
+    Text(Text),
     Heading {
         level: usize,
         content: Vec<Text>,
         subnodes: Vec<Node>,
     },
-    Text(Text),
-    ListItem {
-        text: Vec<Text>,
-        order: ListOrderType,
-        subnodes: Vec<Node>,
-    },
-    List {
-        subnodes: Vec<Node>,
-    },
+    // Paragraph {
+    //     subnodes: Vec<Node>,
+    // },
 }
 
 impl std::fmt::Display for Node {
@@ -66,9 +154,6 @@ impl std::fmt::Display for Node {
 }
 
 impl Node {
-    pub fn from_events(events: pulldown_cmark::Parser) -> Self {
-        todo!()
-    }
     fn write_indented(
         f: &mut std::fmt::Formatter<'_>,
         node: &Node,
@@ -96,25 +181,6 @@ impl Node {
             }
             Node::Text(text) => {
                 write!(f, "{:indent$}{}", "", text, indent = level * 2)?;
-            }
-            Node::ListItem {
-                text,
-                order,
-                subnodes,
-            } => {
-                write!(f, "{:indent$}{} ", "", order, indent = level * 2)?;
-                for t in text {
-                    write!(f, "{}", t)?;
-                }
-                writeln!(f)?;
-                for subnode in subnodes {
-                    Self::write_indented(f, subnode, level + 1)?;
-                }
-            }
-            Node::List { subnodes: items } => {
-                for item in items {
-                    Self::write_indented(f, item, level)?;
-                }
             }
         }
         Ok(())
@@ -161,38 +227,6 @@ impl Node {
             Node::Text(text) => {
                 result.push(format!("{}Text: {}", indent(level, last), text));
             }
-            Node::ListItem {
-                text,
-                order,
-                subnodes,
-            } => {
-                match order {
-                    ListOrderType::Unordered => {
-                        result.push(format!("{}ListItem: Unordered", indent(level, last)));
-                    }
-                    ListOrderType::Ordered(num) => {
-                        result.push(format!("{}ListItem: Ordered {}", indent(level, last), num));
-                    }
-                }
-                result.push(format!(
-                    "{}Text: {}",
-                    indent(level + 1, subnodes.is_empty()),
-                    text.iter()
-                        .map(|t| t.to_string())
-                        .collect::<Vec<_>>()
-                        .join("")
-                ));
-                let size = subnodes.len();
-                for (idx, node) in subnodes.iter().enumerate() {
-                    result.push(Self::tree_view(level + 1, node, idx == size - 1));
-                }
-            }
-            Node::List { subnodes: items } => {
-                let size = items.len();
-                for (idx, item) in items.iter().enumerate() {
-                    result.push(Self::tree_view(level, item, idx == size - 1));
-                }
-            }
         };
         result.join("\n")
     }
@@ -209,28 +243,14 @@ mod tests {
     #[test]
     fn test_write_indented() {
         let node = Node::Document {
-            subnodes: vec![
-                Node::Heading {
-                    level: 1,
-                    content: vec![Text::Plain("Heading".to_string())],
-                    subnodes: vec![],
-                },
-                Node::ListItem {
-                    text: vec![Text::Plain("Item 1".to_string())],
-                    order: ListOrderType::Unordered,
-                    subnodes: vec![],
-                },
-                Node::ListItem {
-                    text: vec![Text::Plain("Item 2".to_string())],
-                    order: ListOrderType::Ordered(1),
-                    subnodes: vec![],
-                },
-            ],
+            subnodes: vec![Node::Heading {
+                level: 1,
+                content: vec![Text::Plain(vec![SimpleText::Simple("Heading".to_string())])],
+                subnodes: vec![],
+            }],
         };
 
-        let expected = "# Heading\n\
-                       - Item 1\n\
-                       1. Item 2\n";
+        let expected = "# Heading\n";
 
         let output = format!("{}", node);
         assert_eq!(output, expected);
