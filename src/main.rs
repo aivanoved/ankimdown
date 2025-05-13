@@ -1,5 +1,5 @@
 use ankimdown::markdown::{
-    ast::Text,
+    text::Text,
     util::{log_markdown_events, log_markdown_str},
 };
 use pulldown_cmark::{Event, Options, Parser};
@@ -39,6 +39,6 @@ a **greeting**
 }
 
 fn main() {
-    markdown_ast();
-    // markdown_parser();
+    // markdown_ast();
+    markdown_parser();
 }
