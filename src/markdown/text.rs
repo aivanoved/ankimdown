@@ -4,28 +4,13 @@ use std::slice::Iter;
 use crate::markdown::util::check_matching_tags;
 
 #[derive(Debug, Clone)]
-pub enum SimpleText {
-    Simple(String),
+pub enum Text {
+    Plain(Vec<String>),
+    Bold(Vec<String>),
+    Italic(Vec<String>),
+    Strikethrough(Vec<String>),
     SoftBreak,
     HardBreak,
-}
-
-impl std::fmt::Display for SimpleText {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Simple(txt) => write!(f, "{}", txt),
-            Self::SoftBreak => write!(f, "\n"),
-            Self::HardBreak => write!(f, "\\\n"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Text {
-    Plain(Vec<SimpleText>),
-    Bold(Vec<SimpleText>),
-    Italic(Vec<SimpleText>),
-    Strikethrough(Vec<SimpleText>),
 }
 
 impl Text {
@@ -43,15 +28,15 @@ impl Text {
         let tag = match event {
             Event::Text(txt) => {
                 let _ = events.nth(take - 1);
-                return Ok(Self::Plain(vec![SimpleText::Simple(txt.to_string())]));
+                return Ok(Self::Plain(vec![txt.to_string()]));
             }
             Event::HardBreak => {
                 let _ = events.nth(take - 1);
-                return Ok(Text::Plain(vec![SimpleText::HardBreak]));
+                return Ok(Text::HardBreak);
             }
             Event::SoftBreak => {
                 let _ = events.nth(take - 1);
-                return Ok(Text::Plain(vec![SimpleText::SoftBreak]));
+                return Ok(Text::SoftBreak);
             }
             Event::Start(tag) => tag,
             _ => return Err("Unable to parse".to_string()),
@@ -69,10 +54,8 @@ impl Text {
         while let Some(event) = events_cloned.next() {
             match event {
                 Event::Text(txt) => {
-                    inner_text.push(SimpleText::Simple(txt.to_string()));
+                    inner_text.push(txt.to_string());
                 }
-                Event::HardBreak => inner_text.push(SimpleText::HardBreak),
-                Event::SoftBreak => inner_text.push(SimpleText::SoftBreak),
                 Event::End(tag_end) => {
                     if !check_matching_tags(&tag, &tag_end) {
                         return Err("Tags are not matching".to_string());
@@ -116,6 +99,8 @@ impl std::fmt::Display for Text {
             Text::Bold(txt) => (Some("**"), txt),
             Text::Italic(txt) => (Some("_"), txt),
             Text::Strikethrough(txt) => (Some("~~"), txt),
+            Text::SoftBreak => (None, &vec!["\n".to_string()]),
+            Text::HardBreak => (None, &vec!["\\\n".to_string()]),
         };
 
         let inner_text = text

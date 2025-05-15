@@ -1,3 +1,4 @@
+use std::iter::Peekable;
 use std::slice::Iter;
 
 use pulldown_cmark::{Event, Tag, TagEnd};
@@ -21,64 +22,51 @@ pub enum Node {
 }
 
 impl Node {
-    fn try_event_paragraph(events: &mut Iter<Event>) -> Result<Self, String> {
-        let mut events_clone = events.clone();
+    fn parse_text(events: &mut Peekable<Iter<Event>>) -> Result<Self, &'static str> {
         let mut take = 0 as usize;
-
-        let paragraph_event = events_clone
-            .next()
-            .ok_or("Not paragraph start".to_string())?;
-
-        match paragraph_event {
-            Event::Start(Tag::Paragraph) => {}
-            _ => return Err("Not a paragraph".to_string()),
-        }
-
-        take += 1;
-
-        let mut text_nodes = vec![];
-
-        while let Ok(text) = Text::try_from_events(&mut events_clone) {
-            text_nodes.push(Node::Text(text));
-            take += 1;
-        }
-
-        let paragraph_end = events_clone.next().ok_or("No end event")?;
-
-        match paragraph_end {
-            Event::End(TagEnd::Paragraph) => {
-                let _ = events.take(take);
-                Ok(Node::Paragraph {
-                    subnodes: text_nodes,
-                })
+        let result = match events.peek().ok_or("No event")? {
+            Event::Text(txt) => {
+                take += 1;
+                Ok(Node::Text(Text::Plain(vec![txt.to_string()])))
             }
-            _ => Err("No paragraph end".to_string()),
-        }
-    }
-
-    fn try_event_header(
-        events: &mut Iter<Event>,
-        min_level: Option<usize>,
-    ) -> Result<Self, String> {
-        todo!()
-    }
-
-    pub fn try_events(
-        events: &mut Iter<Event>,
-        min_level: Option<usize>,
-    ) -> Result<Vec<Node>, String> {
-        let mut nodes = vec![];
-        while events.len() > 0 {
-            if let Ok(paragraph) = Self::try_event_paragraph(events) {
-                nodes.push(paragraph);
-            } else if let Ok(heading) = Self::try_event_header(events, min_level) {
-                nodes.push(heading);
-            } else {
-                return Err("Unsupported main node".to_string());
+            Event::HardBreak => {
+                take += 1;
+                Ok(Node::Text(Text::HardBreak))
             }
+            Event::SoftBreak => {
+                take += 1;
+                Ok(Node::Text(Text::SoftBreak))
+            }
+            Event::Start(Tag::Emphasis) => {
+                if let Event::Text(txt) = events.next().ok_or("No text")? {
+                    take += 2;
+                    Ok(Node::Text(Text::Italic(vec![txt.to_string()])))
+                } else {
+                    Err("No text")
+                }
+            }
+            Event::Start(Tag::Strong) => {
+                if let Event::Text(txt) = events.next().ok_or("No text")? {
+                    take += 2;
+                    Ok(Node::Text(Text::Bold(vec![txt.to_string()])))
+                } else {
+                    Err("No text")
+                }
+            }
+            Event::Start(Tag::Strikethrough) => {
+                if let Event::Text(txt) = events.next().ok_or("No text")? {
+                    take += 2;
+                    Ok(Node::Text(Text::Strikethrough(vec![txt.to_string()])))
+                } else {
+                    Err("No text")
+                }
+            }
+            _ => Err("Invalid text token"),
+        };
+        if take > 0 {
+            let _ = events.nth(take - 1);
         }
-
-        Ok(nodes)
+        result
     }
 
     fn write_indented(
@@ -179,15 +167,13 @@ impl std::fmt::Display for Node {
 mod tests {
     use super::*;
 
-    use crate::markdown::text::SimpleText;
-
     #[test]
     fn test_write_indented() {
         let node = Node::Document {
             subnodes: vec![Node::Heading {
                 heading: Heading {
                     level: 1,
-                    content: vec![Text::Plain(vec![SimpleText::Simple("Heading".to_string())])],
+                    content: vec![Text::Plain(vec!["Heading".to_string()])],
                 },
                 subnodes: vec![],
             }],
