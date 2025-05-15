@@ -22,7 +22,7 @@ pub enum Node {
 }
 
 impl Node {
-    fn parse_text(events: &mut Peekable<Iter<Event>>) -> Result<Self, &'static str> {
+    fn parse_text(events: &mut Peekable<Iter<&Event>>) -> Result<Self, &'static str> {
         let mut take = 0 as usize;
         let result = match events.peek().ok_or("No event")? {
             Event::Text(txt) => {
@@ -67,6 +67,38 @@ impl Node {
             let _ = events.nth(take - 1);
         }
         result
+    }
+
+    fn parse_paragraph(events: &mut Peekable<Iter<&Event>>) -> Result<Self, &'static str> {
+        match events.peek().ok_or("No events")? {
+            Event::Start(Tag::Paragraph) => events.next(),
+            _ => return Err("Not a paragraph"),
+        };
+        let mut text_events = vec![];
+        let mut closed = false;
+        loop {
+            let &event = events.next().ok_or("No events")?;
+            match event {
+                Event::End(TagEnd::Paragraph) => {
+                    closed = true;
+                    break;
+                }
+                _ => {}
+            };
+            text_events.push(event);
+        }
+        if !closed {
+            return Err("Paragraph never closed");
+        }
+        let mut text_iter = text_events.iter().peekable();
+        let mut subnodes = vec![];
+        while let Ok(txt) = Self::parse_text(&mut text_iter) {
+            subnodes.push(txt);
+        }
+        if text_iter.len() > 0 {
+            return Err("Not only text");
+        }
+        Ok(Self::Paragraph { subnodes: subnodes })
     }
 
     fn write_indented(
