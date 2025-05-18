@@ -1,7 +1,3 @@
-use std::vec;
-
-use pulldown_cmark::Event;
-
 #[derive(Debug, Clone)]
 pub enum Text {
     Plain(String),
@@ -148,7 +144,9 @@ impl Node {
         events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
     ) -> Result<Vec<Self>, &'static str> {
         let mut nodes = vec![];
-        let mut curr_nodes = vec![];
+
+        let mut open_headings = vec![];
+        let mut curr_nodes = &mut nodes;
 
         while let Some(event) = events.next() {
             let node = match event {
@@ -160,8 +158,20 @@ impl Node {
                 _ => todo!(),
             };
 
-            match node.node_type {
-                NodeType::Heading { level, content } => todo!(),
+            match &node.node_type {
+                NodeType::Heading { level, .. } => {
+                    open_headings.push(*level);
+                    if open_headings
+                        .iter()
+                        .fold(false, |acc, heading| acc || *heading >= *level)
+                    {
+                        todo!()
+                    } else {
+                        nodes.push(node);
+                        let size = nodes.len();
+                        curr_nodes = &mut nodes[size - 1].subnodes;
+                    }
+                }
                 _ => curr_nodes.push(node),
             }
         }
