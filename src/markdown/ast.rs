@@ -1,3 +1,5 @@
+use std::vec;
+
 #[derive(Debug, Clone)]
 pub enum Text {
     Plain(String),
@@ -37,7 +39,6 @@ pub struct Node {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Tag {
-    Document,
     Italic,
     Bold,
     Strikethrough,
@@ -59,12 +60,83 @@ impl Tag {
 
     fn from_end(tag_end: pulldown_cmark::TagEnd) -> Self {
         match tag_end {
+            pulldown_cmark::TagEnd::Emphasis => Self::Italic,
+            pulldown_cmark::TagEnd::Strong => Self::Bold,
+            pulldown_cmark::TagEnd::Strikethrough => Self::Strikethrough,
             _ => todo!(),
         }
     }
 }
 
 impl Node {
+    fn parse_text_event(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+        tag: Tag,
+    ) -> Result<Self, &'static str> {
+        let txt_events = events
+            .take_while(|event| match event {
+                pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != tag,
+                _ => true,
+            })
+            .collect::<Vec<_>>();
+        let text_str = txt_events
+            .iter()
+            .filter_map(|event| match event {
+                pulldown_cmark::Event::Text(txt) => Some(txt.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if txt_events.len() != text_str.len() {
+            return Err("Not all events are text events");
+        }
+        let text = text_str.join("");
+        match tag {
+            Tag::Italic => Ok(Self {
+                node_type: NodeType::Text(Text::Italic(text)),
+                subnodes: vec![],
+            }),
+            Tag::Bold => Ok(Self {
+                node_type: NodeType::Text(Text::Bold(text)),
+                subnodes: vec![],
+            }),
+            Tag::Strikethrough => Ok(Self {
+                node_type: NodeType::Text(Text::Strikethrough(text)),
+                subnodes: vec![],
+            }),
+            _ => Err("Not a text event"),
+        }
+    }
+
+    fn parse_tag(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+        tag: Tag,
+    ) -> Result<Self, &'static str> {
+        match tag {
+            Tag::Italic | Tag::Bold | Tag::Strikethrough => Self::parse_text_event(events, tag),
+            _ => todo!(),
+        }
+    }
+
+    pub fn parse_nodes(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+    ) -> Result<Vec<Self>, &'static str> {
+        let mut nodes = vec![];
+        let mut curr_nodes = vec![];
+        while let Some(event) = events.next() {
+            match event {
+                pulldown_cmark::Event::Start(tag) => {
+                    let _ = Self::parse_tag(events, Tag::from_start(tag))?;
+                }
+                pulldown_cmark::Event::Text(txt) => curr_nodes.push(Self {
+                    node_type: NodeType::Text(Text::Plain(txt.to_string())),
+                    subnodes: vec![],
+                }),
+                _ => todo!(),
+            }
+        }
+        Ok(nodes)
+    }
+
     fn write_indented(&self, f: &mut std::fmt::Formatter<'_>, level: usize) -> std::fmt::Result {
         match &self.node_type {
             NodeType::Document => {
