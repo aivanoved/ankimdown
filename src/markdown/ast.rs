@@ -1,5 +1,7 @@
 use std::vec;
 
+use pulldown_cmark::Event;
+
 #[derive(Debug, Clone)]
 pub enum Text {
     Plain(String),
@@ -107,12 +109,37 @@ impl Node {
         }
     }
 
+    fn parse_paragraph(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+    ) -> Result<Self, &'static str> {
+        let text_events = events
+            .take_while(|event| match event {
+                pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != Tag::Paragraph,
+                _ => true,
+            })
+            .collect::<Vec<_>>();
+        let txt_nodes = Self::parse_nodes(&mut text_events.into_iter())?;
+
+        for node in &txt_nodes {
+            match node.node_type {
+                NodeType::Text(_) => (),
+                _ => return Err("Non text node was found"),
+            }
+        }
+
+        Ok(Self {
+            node_type: NodeType::Paragraph,
+            subnodes: txt_nodes,
+        })
+    }
+
     fn parse_tag(
         events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
         tag: Tag,
     ) -> Result<Self, &'static str> {
         match tag {
             Tag::Italic | Tag::Bold | Tag::Strikethrough => Self::parse_text_event(events, tag),
+            Tag::Paragraph => Self::parse_paragraph(events),
             _ => todo!(),
         }
     }
@@ -122,18 +149,23 @@ impl Node {
     ) -> Result<Vec<Self>, &'static str> {
         let mut nodes = vec![];
         let mut curr_nodes = vec![];
+
         while let Some(event) = events.next() {
-            match event {
-                pulldown_cmark::Event::Start(tag) => {
-                    let _ = Self::parse_tag(events, Tag::from_start(tag))?;
-                }
-                pulldown_cmark::Event::Text(txt) => curr_nodes.push(Self {
+            let node = match event {
+                pulldown_cmark::Event::Start(tag) => Self::parse_tag(events, Tag::from_start(tag))?,
+                pulldown_cmark::Event::Text(txt) => Self {
                     node_type: NodeType::Text(Text::Plain(txt.to_string())),
                     subnodes: vec![],
-                }),
+                },
                 _ => todo!(),
+            };
+
+            match node.node_type {
+                NodeType::Heading { level, content } => todo!(),
+                _ => curr_nodes.push(node),
             }
         }
+
         Ok(nodes)
     }
 
