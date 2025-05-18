@@ -10,7 +10,7 @@ fn markdown_ast() {
 #[allow(dead_code)]
 fn markdown_parser() {
     let markdown_text: &str = r#"
-# Deck name
+# Deck __name__
 
 # hello
 ## Meaning
@@ -24,6 +24,6 @@ a **greeting**
 }
 
 fn main() {
-    markdown_ast();
-    // markdown_parser();
+    // markdown_ast();
+    markdown_parser();
 }
