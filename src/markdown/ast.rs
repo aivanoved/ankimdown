@@ -192,8 +192,8 @@ impl Node {
     ) -> Result<Vec<Self>, &'static str> {
         let mut nodes = vec![];
 
-        let mut open_headings = vec![];
-        let mut curr_nodes = &mut nodes;
+        let mut open_headings = Vec::<usize>::new();
+        let mut curr_node = None as Option<&mut Self>;
 
         while let Some(event) = events.next() {
             let node = match event {
@@ -205,21 +205,23 @@ impl Node {
                 _ => todo!(),
             };
 
-            match &node.node_type {
-                NodeType::Heading { level, .. } => {
-                    open_headings.push(*level);
-                    if open_headings
-                        .iter()
-                        .fold(false, |acc, heading| acc || *heading >= *level)
-                    {
-                        todo!()
-                    } else {
-                        nodes.push(node);
-                        let size = nodes.len();
-                        curr_nodes = &mut nodes[size - 1].subnodes;
+            if let NodeType::Heading { level: lvl, .. } = &node.node_type {
+                if open_headings.iter().any(|heading| lvl <= heading) {
+                    loop {
+                        todo!();
+                    }
+                } else {
+                    match curr_node {
+                        None => {
+                            nodes.push(node);
+                            let size = nodes.len();
+                            curr_node = Some(&mut nodes[size - 1]);
+                        }
+                        Some(ref mut cn) => cn.subnodes.push(node),
                     }
                 }
-                _ => curr_nodes.push(node),
+            } else {
+                todo!();
             }
         }
 
