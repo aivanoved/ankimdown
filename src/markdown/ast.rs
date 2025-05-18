@@ -12,9 +12,18 @@ impl Text {
     pub fn to_markdown(&self) -> String {
         match self {
             Self::Plain(txt) => txt.to_string(),
-            Self::Italic(txt) => txt.to_string(),
-            Self::Bold(txt) => txt.to_string(),
-            Self::Strikethrough(txt) => txt.to_string(),
+            Self::Italic(txt) => {
+                let separator = "_";
+                format!("{separator}{}{separator}", txt)
+            }
+            Self::Bold(txt) => {
+                let separator = "**";
+                format!("{separator}{}{separator}", txt)
+            }
+            Self::Strikethrough(txt) => {
+                let separator = "~~";
+                format!("{separator}{}{separator}", txt)
+            }
             Self::SoftBrake => "\n".to_string(),
             Self::HardBrake => "\\\n".to_string(),
         }
@@ -136,6 +145,7 @@ impl Node {
         match tag {
             Tag::Italic | Tag::Bold | Tag::Strikethrough => Self::parse_text_event(events, tag),
             Tag::Paragraph => Self::parse_paragraph(events),
+            // Tag::Heading(level) => Self::parse_heading(events, tag),
             _ => todo!(),
         }
     }
