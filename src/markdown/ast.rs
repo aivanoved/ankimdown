@@ -1,8 +1,3 @@
-use std::iter::Peekable;
-use std::slice::Iter;
-
-use pulldown_cmark::{Event, Tag, TagEnd};
-
 use crate::markdown::heading::Heading;
 use crate::markdown::text::Text;
 
@@ -21,84 +16,95 @@ pub enum Node {
     },
 }
 
-impl Node {
-    fn parse_text(events: &mut Peekable<Iter<&Event>>) -> Result<Self, &'static str> {
-        let mut take = 0 as usize;
-        let result = match events.peek().ok_or("No event")? {
-            Event::Text(txt) => {
-                take += 1;
-                Ok(Node::Text(Text::Plain(vec![txt.to_string()])))
-            }
-            Event::HardBreak => {
-                take += 1;
-                Ok(Node::Text(Text::HardBreak))
-            }
-            Event::SoftBreak => {
-                take += 1;
-                Ok(Node::Text(Text::SoftBreak))
-            }
-            Event::Start(Tag::Emphasis) => {
-                if let Event::Text(txt) = events.next().ok_or("No text")? {
-                    take += 2;
-                    Ok(Node::Text(Text::Italic(vec![txt.to_string()])))
-                } else {
-                    Err("No text")
-                }
-            }
-            Event::Start(Tag::Strong) => {
-                if let Event::Text(txt) = events.next().ok_or("No text")? {
-                    take += 2;
-                    Ok(Node::Text(Text::Bold(vec![txt.to_string()])))
-                } else {
-                    Err("No text")
-                }
-            }
-            Event::Start(Tag::Strikethrough) => {
-                if let Event::Text(txt) = events.next().ok_or("No text")? {
-                    take += 2;
-                    Ok(Node::Text(Text::Strikethrough(vec![txt.to_string()])))
-                } else {
-                    Err("No text")
-                }
-            }
-            _ => Err("Invalid text token"),
-        };
-        if take > 0 {
-            let _ = events.nth(take - 1);
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Tag {
+    Document,
+    Italic,
+    Bold,
+    Strikethrough,
+    Paragraph,
+    Heading(usize),
+}
+
+impl Tag {
+    fn from_start(tag: pulldown_cmark::Tag) -> Self {
+        match tag {
+            pulldown_cmark::Tag::Emphasis => Self::Italic,
+            pulldown_cmark::Tag::Strong => Self::Bold,
+            pulldown_cmark::Tag::Strikethrough => Self::Strikethrough,
+            pulldown_cmark::Tag::Heading { level, .. } => Self::Heading(level as usize),
+            pulldown_cmark::Tag::Paragraph => Self::Paragraph,
+            _ => todo!(),
         }
-        result
+    }
+}
+
+impl TryFrom<&Node> for Tag {
+    type Error = &'static str;
+    fn try_from(value: &Node) -> Result<Self, Self::Error> {
+        match value {
+            Node::Document { .. } => Ok(Self::Document),
+            Node::Paragraph { .. } => Ok(Self::Paragraph),
+            Node::Text(txt) => match txt {
+                Text::Bold(_) => Ok(Self::Bold),
+                Text::Italic(_) => Ok(Self::Italic),
+                Text::Strikethrough(_) => Ok(Self::Strikethrough),
+                _ => Err("Not a tag"),
+            },
+            Node::Heading { heading, .. } => Ok(Self::Heading(heading.level)),
+            _ => todo!(),
+        }
+    }
+}
+
+impl Node {
+    fn parse_tag<'a>(
+        events: &mut impl Iterator<Item = pulldown_cmark::Event<'a>>,
+        tag: &Tag,
+    ) -> Result<Self, &'static str> {
+        match tag {
+            Tag::Italic => match events.next().ok_or("No text inside tag")? {
+                pulldown_cmark::Event::Text(txt) => Ok(Self::Text(Text::Italic(txt.to_string()))),
+                _ => Err("Unexpected event occurred"),
+            },
+            Tag::Bold => match events.next().ok_or("No text inside tag")? {
+                pulldown_cmark::Event::Text(txt) => Ok(Self::Text(Text::Bold(txt.to_string()))),
+                _ => Err("Unexpected event occurred"),
+            },
+            Tag::Strikethrough => match events.next().ok_or("No text inside tag")? {
+                pulldown_cmark::Event::Text(txt) => {
+                    Ok(Self::Text(Text::Strikethrough(txt.to_string())))
+                }
+                _ => Err("Unexpected event occurred"),
+            },
+            _ => todo!(),
+        }
     }
 
-    fn parse_paragraph(events: &mut Peekable<Iter<&Event>>) -> Result<Self, &'static str> {
-        match events.peek().ok_or("No events")? {
-            Event::Start(Tag::Paragraph) => events.next(),
-            _ => return Err("Not a paragraph"),
-        };
-        let mut text_events = vec![];
-        let mut closed = false;
-        loop {
-            let &event = events.next().ok_or("No events")?;
+    pub fn parse_nodes<'a>(
+        events: &mut impl Iterator<Item = pulldown_cmark::Event<'a>>,
+    ) -> Result<Vec<Self>, &'static str> {
+        let mut parsing_stack = vec![];
+
+        let mut curr_subnodes = vec![];
+
+        while let Some(event) = events.next() {
             match event {
-                Event::End(TagEnd::Paragraph) => {
-                    closed = true;
-                    break;
+                pulldown_cmark::Event::Start(tag) => {
+                    parsing_stack.push((
+                        Self::parse_tag(events, &Tag::from_start(tag))?,
+                        curr_subnodes,
+                    ));
+                    curr_subnodes = vec![];
                 }
-                _ => {}
-            };
-            text_events.push(event);
+                pulldown_cmark::Event::Text(txt) => {
+                    curr_subnodes.push(Node::Text(Text::Plain(txt.to_string())));
+                }
+                _ => todo!(),
+            }
         }
-        if !closed {
-            return Err("Paragraph never closed");
-        }
-        let mut text_iter = text_events.iter().peekable();
-        let mut subnodes = vec![];
-        while let Ok(txt) = Self::parse_text(&mut text_iter) {
-            subnodes.push(txt);
-        }
-        if text_iter.len() > 0 {
-            return Err("Not only text");
-        }
-        Ok(Self::Paragraph { subnodes: subnodes })
+
+        todo!()
     }
 
     fn write_indented(
@@ -205,7 +211,7 @@ mod tests {
             subnodes: vec![Node::Heading {
                 heading: Heading {
                     level: 1,
-                    content: vec![Text::Plain(vec!["Heading".to_string()])],
+                    content: vec![Text::Plain("Heading".to_string())],
                 },
                 subnodes: vec![],
             }],

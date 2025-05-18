@@ -5,10 +5,10 @@ use crate::markdown::util::check_matching_tags;
 
 #[derive(Debug, Clone)]
 pub enum Text {
-    Plain(Vec<String>),
-    Bold(Vec<String>),
-    Italic(Vec<String>),
-    Strikethrough(Vec<String>),
+    Plain(String),
+    Bold(String),
+    Italic(String),
+    Strikethrough(String),
     SoftBreak,
     HardBreak,
 }
@@ -28,7 +28,7 @@ impl Text {
         let tag = match event {
             Event::Text(txt) => {
                 let _ = events.nth(take - 1);
-                return Ok(Self::Plain(vec![txt.to_string()]));
+                return Ok(Self::Plain(txt.to_string()));
             }
             Event::HardBreak => {
                 let _ = events.nth(take - 1);
@@ -77,15 +77,15 @@ impl Text {
         match tag {
             Tag::Emphasis => {
                 let _ = events.nth(take - 1);
-                Ok(Text::Italic(inner_text))
+                Ok(Text::Italic(inner_text.join("")))
             }
             Tag::Strikethrough => {
                 let _ = events.nth(take - 1);
-                Ok(Text::Strikethrough(inner_text))
+                Ok(Text::Strikethrough(inner_text.join("")))
             }
             Tag::Strong => {
                 let _ = events.nth(take - 1);
-                Ok(Text::Bold(inner_text))
+                Ok(Text::Bold(inner_text.join("")))
             }
             _ => Err("Invalid text tag".to_string()),
         }
@@ -99,18 +99,12 @@ impl std::fmt::Display for Text {
             Text::Bold(txt) => (Some("**"), txt),
             Text::Italic(txt) => (Some("_"), txt),
             Text::Strikethrough(txt) => (Some("~~"), txt),
-            Text::SoftBreak => (None, &vec!["\n".to_string()]),
-            Text::HardBreak => (None, &vec!["\\\n".to_string()]),
+            Text::SoftBreak => (None, &"\n".to_string()),
+            Text::HardBreak => (None, &"\\\n".to_string()),
         };
-
-        let inner_text = text
-            .iter()
-            .map(|txt| format!("{}", txt))
-            .collect::<Vec<String>>()
-            .join("");
 
         let sep = surround.unwrap_or("");
 
-        write!(f, "{sep}{inner_text}{sep}")
+        write!(f, "{sep}{text}{sep}")
     }
 }
