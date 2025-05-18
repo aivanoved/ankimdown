@@ -138,6 +138,44 @@ impl Node {
         })
     }
 
+    fn parse_heading(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+        tag: Tag,
+    ) -> Result<Self, &'static str> {
+        let text_nodes = events.take_while(|event| match event {
+            pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != tag,
+            _ => true,
+        });
+        let text_nodes = Self::parse_nodes(&mut text_nodes.into_iter())?;
+
+        for node in &text_nodes {
+            match node.node_type {
+                NodeType::Text(_) => (),
+                _ => return Err("Non text node was found"),
+            }
+        }
+
+        let level = match tag {
+            Tag::Heading(level) => Some(level),
+            _ => None,
+        }
+        .ok_or("Not headinh tag")?;
+
+        Ok(Self {
+            node_type: NodeType::Heading {
+                level: level,
+                content: text_nodes
+                    .iter()
+                    .filter_map(|node| match &node.node_type {
+                        NodeType::Text(txt) => Some(txt.clone()),
+                        _ => None,
+                    })
+                    .collect(),
+            },
+            subnodes: vec![],
+        })
+    }
+
     fn parse_tag(
         events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
         tag: Tag,
@@ -145,8 +183,7 @@ impl Node {
         match tag {
             Tag::Italic | Tag::Bold | Tag::Strikethrough => Self::parse_text_event(events, tag),
             Tag::Paragraph => Self::parse_paragraph(events),
-            // Tag::Heading(level) => Self::parse_heading(events, tag),
-            _ => todo!(),
+            Tag::Heading(_) => Self::parse_heading(events, tag),
         }
     }
 
