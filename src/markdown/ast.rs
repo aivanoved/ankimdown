@@ -193,10 +193,10 @@ impl Node {
         let mut nodes = vec![];
 
         let mut open_headings = Vec::<usize>::new();
-        let mut curr_node = None as Option<&mut Self>;
+        let mut subnodes_stack = vec![&mut nodes];
 
         while let Some(event) = events.next() {
-            let node = match event {
+            let mut node = match event {
                 pulldown_cmark::Event::Start(tag) => Self::parse_tag(events, Tag::from_start(tag))?,
                 pulldown_cmark::Event::Text(txt) => Self {
                     node_type: NodeType::Text(Text::Plain(txt.to_string())),
@@ -205,23 +205,19 @@ impl Node {
                 _ => todo!(),
             };
 
-            if let NodeType::Heading { level: lvl, .. } = &node.node_type {
-                if open_headings.iter().any(|heading| lvl <= heading) {
+            if let NodeType::Heading { level: lvl, .. } = node.node_type.clone() {
+                if open_headings.iter().any(|heading| lvl <= *heading) {
                     loop {
                         todo!();
                     }
                 } else {
-                    match curr_node {
-                        None => {
-                            nodes.push(node);
-                            let size = nodes.len();
-                            curr_node = Some(&mut nodes[size - 1]);
-                        }
-                        Some(ref mut cn) => cn.subnodes.push(node),
-                    }
+                    let size = subnodes_stack.len();
+                    subnodes_stack[size - 1].push(node);
+                    open_headings.push(lvl);
                 }
             } else {
-                todo!();
+                let size = subnodes_stack.len();
+                subnodes_stack[size - 1].push(node);
             }
         }
 
