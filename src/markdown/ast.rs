@@ -192,8 +192,8 @@ impl Node {
     ) -> Result<Vec<Self>, &'static str> {
         let mut nodes = vec![];
 
-        let mut open_headings = Vec::<usize>::new();
-        let mut subnodes_stack = vec![&mut nodes];
+        let mut open_headings = Vec::<&mut Self>::new();
+        let mut curr_subnodes = None as Option<&mut Node>;
 
         while let Some(event) = events.next() {
             let mut node = match event {
@@ -206,18 +206,44 @@ impl Node {
             };
 
             if let NodeType::Heading { level: lvl, .. } = node.node_type.clone() {
-                if open_headings.iter().any(|heading| lvl <= *heading) {
-                    loop {
-                        todo!();
+                loop {
+                    let size = open_headings.len();
+                    if size == 0 {
+                        curr_subnodes = None;
+                        break;
                     }
-                } else {
-                    let size = subnodes_stack.len();
-                    subnodes_stack[size - 1].push(node);
-                    open_headings.push(lvl);
+                    match open_headings[size - 1].node_type {
+                        NodeType::Heading { level, .. } => {
+                            curr_subnodes = Some(&mut open_headings[size - 1]);
+                            if level < lvl {
+                                break;
+                            }
+                        }
+                        _ => return Err("Headings contains a non headings"),
+                    }
+                }
+                curr_subnodes = match curr_subnodes {
+                    None => {
+                        nodes.push(node);
+                        None
+                    }
+                    Some(subnodes) => {
+                        let size = subnodes.subnodes.len();
+                        subnodes.subnodes.push(node);
+                        Some(&mut subnodes.subnodes[size])
+                    }
                 }
             } else {
-                let size = subnodes_stack.len();
-                subnodes_stack[size - 1].push(node);
+                curr_subnodes = match curr_subnodes {
+                    None => {
+                        nodes.push(node);
+                        None
+                    }
+                    Some(subnodes) => {
+                        subnodes.subnodes.push(node);
+                        Some(subnodes)
+                    }
+                }
             }
         }
 
