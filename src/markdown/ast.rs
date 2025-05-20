@@ -1,3 +1,5 @@
+use std::{rc::Rc, usize};
+
 #[derive(Debug, Clone)]
 pub enum Text {
     Plain(String),
@@ -41,7 +43,7 @@ pub enum NodeType {
 #[derive(Debug, Clone)]
 pub struct Node {
     node_type: NodeType,
-    subnodes: Vec<Node>,
+    subnodes: Vec<Rc<Node>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -163,7 +165,7 @@ impl Node {
 
         Ok(Self {
             node_type: NodeType::Heading {
-                level: level,
+                level,
                 content: text_nodes
                     .iter()
                     .filter_map(|node| match &node.node_type {
@@ -193,10 +195,57 @@ impl Node {
         let mut nodes = vec![];
 
         let mut open_headings = Vec::<&mut Self>::new();
-        let mut curr_subnodes = None as Option<&mut Node>;
+
+        fn push_node(
+            node: Node,
+            mut nodes: Vec<Rc<Node>>,
+            mut open_headings: Vec<Rc<Node>>,
+        ) -> Result<(Vec<Rc<Node>>, Vec<Rc<Node>>), &'static str> {
+            let push_level = match &node.node_type {
+                NodeType::Heading { level, .. } => Some(*level),
+                _ => None,
+            };
+
+            let rc_node = Rc::new(node);
+
+            while let Some(n) = open_headings.last() {
+                match &n.node_type {
+                    NodeType::Heading { level: lvl, .. } => {
+                        if *lvl >= push_level.unwrap_or(usize::MAX) {
+                            open_headings.pop();
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+
+            match open_headings.len() {
+                0 => nodes.push(rc_node),
+                size => Rc::get_mut(&mut open_headings[size - 1])
+                    .ok_or("Cannot get mut from ref counted")?
+                    .subnodes
+                    .push(rc_node),
+            };
+
+            if push_level.is_some() {
+                match open_headings.len() {
+                    0usize => {
+                        todo!();
+                    }
+                    _ => {
+                        let size = open_headings.len();
+                        let sub_size = open_headings[size - 1].subnodes.len();
+                        open_headings.push(open_headings[size - 1].subnodes[sub_size - 1].clone())
+                    }
+                }
+            }
+            Ok((nodes, open_headings))
+        }
 
         while let Some(event) = events.next() {
-            let mut node = match event {
+            let node = match event {
                 pulldown_cmark::Event::Start(tag) => Self::parse_tag(events, Tag::from_start(tag))?,
                 pulldown_cmark::Event::Text(txt) => Self {
                     node_type: NodeType::Text(Text::Plain(txt.to_string())),
@@ -204,47 +253,7 @@ impl Node {
                 },
                 _ => todo!(),
             };
-
-            if let NodeType::Heading { level: lvl, .. } = node.node_type.clone() {
-                loop {
-                    let size = open_headings.len();
-                    if size == 0 {
-                        curr_subnodes = None;
-                        break;
-                    }
-                    match open_headings[size - 1].node_type {
-                        NodeType::Heading { level, .. } => {
-                            curr_subnodes = Some(&mut open_headings[size - 1]);
-                            if level < lvl {
-                                break;
-                            }
-                        }
-                        _ => return Err("Headings contains a non headings"),
-                    }
-                }
-                curr_subnodes = match curr_subnodes {
-                    None => {
-                        nodes.push(node);
-                        None
-                    }
-                    Some(subnodes) => {
-                        let size = subnodes.subnodes.len();
-                        subnodes.subnodes.push(node);
-                        Some(&mut subnodes.subnodes[size])
-                    }
-                }
-            } else {
-                curr_subnodes = match curr_subnodes {
-                    None => {
-                        nodes.push(node);
-                        None
-                    }
-                    Some(subnodes) => {
-                        subnodes.subnodes.push(node);
-                        Some(subnodes)
-                    }
-                }
-            }
+            (nodes, open_headings) = push_node(node, nodes, open_headings)?;
         }
 
         Ok(nodes)
