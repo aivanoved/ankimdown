@@ -147,10 +147,7 @@ impl Node {
 
         Ok(Self {
             node_type: NodeType::Paragraph,
-            subnodes: txt_nodes
-                .into_iter()
-                .map(|n| Rc::new(n))
-                .collect(),
+            subnodes: txt_nodes,
         })
     }
 
@@ -210,7 +207,7 @@ impl Node {
 
     pub fn parse_nodes(
         events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
-    ) -> Result<Vec<Self>, &'static str> {
+    ) -> Result<Vec<Rc<Self>>, &'static str> {
         let mut nodes = vec![];
 
         let mut open_headings = Vec::<Rc<Self>>::new();
@@ -347,9 +344,9 @@ impl std::fmt::Display for Node {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
-|
     use super::*;
+
+    use std::vec;
 
     #[test]
     fn test_write_indented() {
