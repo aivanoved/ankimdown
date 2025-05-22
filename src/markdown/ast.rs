@@ -61,7 +61,9 @@ impl Tag {
             pulldown_cmark::Tag::Emphasis => Self::Italic,
             pulldown_cmark::Tag::Strong => Self::Bold,
             pulldown_cmark::Tag::Strikethrough => Self::Strikethrough,
-            pulldown_cmark::Tag::Heading { level, .. } => Self::Heading(level as usize),
+            pulldown_cmark::Tag::Heading { level, .. } => {
+                Self::Heading(level as usize)
+            }
             pulldown_cmark::Tag::Paragraph => Self::Paragraph,
             _ => todo!(),
         }
@@ -71,7 +73,9 @@ impl Tag {
         match tag_end {
             pulldown_cmark::TagEnd::Emphasis => Self::Italic,
             pulldown_cmark::TagEnd::Strong => Self::Bold,
-            pulldown_cmark::TagEnd::Strikethrough => Self::Strikethrough,
+            pulldown_cmark::TagEnd::Strikethrough => {
+                Self::Strikethrough
+            }
             _ => todo!(),
         }
     }
@@ -84,14 +88,18 @@ impl Node {
     ) -> Result<Self, &'static str> {
         let txt_events = events
             .take_while(|event| match event {
-                pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != tag,
+                pulldown_cmark::Event::End(tag_end) => {
+                    Tag::from_end(*tag_end) != tag
+                }
                 _ => true,
             })
             .collect::<Vec<_>>();
         let text_str = txt_events
             .iter()
             .filter_map(|event| match event {
-                pulldown_cmark::Event::Text(txt) => Some(txt.to_string()),
+                pulldown_cmark::Event::Text(txt) => {
+                    Some(txt.to_string())
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -121,11 +129,14 @@ impl Node {
     ) -> Result<Self, &'static str> {
         let text_events = events
             .take_while(|event| match event {
-                pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != Tag::Paragraph,
+                pulldown_cmark::Event::End(tag_end) => {
+                    Tag::from_end(*tag_end) != Tag::Paragraph
+                }
                 _ => true,
             })
             .collect::<Vec<_>>();
-        let txt_nodes = Self::parse_nodes(&mut text_events.into_iter())?;
+        let txt_nodes =
+            Self::parse_nodes(&mut text_events.into_iter())?;
 
         for node in &txt_nodes {
             match node.node_type {
@@ -145,10 +156,13 @@ impl Node {
         tag: Tag,
     ) -> Result<Self, &'static str> {
         let text_nodes = events.take_while(|event| match event {
-            pulldown_cmark::Event::End(tag_end) => Tag::from_end(*tag_end) != tag,
+            pulldown_cmark::Event::End(tag_end) => {
+                Tag::from_end(*tag_end) != tag
+            }
             _ => true,
         });
-        let text_nodes = Self::parse_nodes(&mut text_nodes.into_iter())?;
+        let text_nodes =
+            Self::parse_nodes(&mut text_nodes.into_iter())?;
 
         for node in &text_nodes {
             match node.node_type {
@@ -183,7 +197,9 @@ impl Node {
         tag: Tag,
     ) -> Result<Self, &'static str> {
         match tag {
-            Tag::Italic | Tag::Bold | Tag::Strikethrough => Self::parse_text_event(events, tag),
+            Tag::Italic | Tag::Bold | Tag::Strikethrough => {
+                Self::parse_text_event(events, tag)
+            }
             Tag::Paragraph => Self::parse_paragraph(events),
             Tag::Heading(_) => Self::parse_heading(events, tag),
         }
@@ -200,7 +216,8 @@ impl Node {
             node: Node,
             mut nodes: Vec<Rc<Node>>,
             mut open_headings: Vec<Rc<Node>>,
-        ) -> Result<(Vec<Rc<Node>>, Vec<Rc<Node>>), &'static str> {
+        ) -> Result<(Vec<Rc<Node>>, Vec<Rc<Node>>), &'static str>
+        {
             let push_level = match &node.node_type {
                 NodeType::Heading { level, .. } => Some(*level),
                 _ => None,
@@ -236,8 +253,13 @@ impl Node {
                     }
                     _ => {
                         let size = open_headings.len();
-                        let sub_size = open_headings[size - 1].subnodes.len();
-                        open_headings.push(open_headings[size - 1].subnodes[sub_size - 1].clone())
+                        let sub_size =
+                            open_headings[size - 1].subnodes.len();
+                        open_headings.push(
+                            open_headings[size - 1].subnodes
+                                [sub_size - 1]
+                                .clone(),
+                        )
                     }
                 }
             }
@@ -246,20 +268,29 @@ impl Node {
 
         while let Some(event) = events.next() {
             let node = match event {
-                pulldown_cmark::Event::Start(tag) => Self::parse_tag(events, Tag::from_start(tag))?,
+                pulldown_cmark::Event::Start(tag) => {
+                    Self::parse_tag(events, Tag::from_start(tag))?
+                }
                 pulldown_cmark::Event::Text(txt) => Self {
-                    node_type: NodeType::Text(Text::Plain(txt.to_string())),
+                    node_type: NodeType::Text(Text::Plain(
+                        txt.to_string(),
+                    )),
                     subnodes: vec![],
                 },
                 _ => todo!(),
             };
-            (nodes, open_headings) = push_node(node, nodes, open_headings)?;
+            (nodes, open_headings) =
+                push_node(node, nodes, open_headings)?;
         }
 
         Ok(nodes)
     }
 
-    fn write_indented(&self, f: &mut std::fmt::Formatter<'_>, level: usize) -> std::fmt::Result {
+    fn write_indented(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        level: usize,
+    ) -> std::fmt::Result {
         match &self.node_type {
             NodeType::Document => {
                 for node in &self.subnodes {
@@ -267,7 +298,13 @@ impl Node {
                 }
             }
             NodeType::Text(txt) => {
-                write!(f, "{:indent$}{}", "", txt.to_markdown(), indent = level * 2)?;
+                write!(
+                    f,
+                    "{:indent$}{}",
+                    "",
+                    txt.to_markdown(),
+                    indent = level * 2
+                )?;
             }
             NodeType::Heading { level, content } => {
                 write!(
@@ -297,7 +334,10 @@ impl Node {
 }
 
 impl std::fmt::Display for Node {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         self.write_indented(f, 0)
     }
 }
