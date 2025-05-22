@@ -291,6 +291,8 @@ impl Node {
         f: &mut std::fmt::Formatter<'_>,
         level: usize,
     ) -> std::fmt::Result {
+        println!("{}", level);
+        println!("{:#?}", self.node_type);
         match &self.node_type {
             NodeType::Document => {
                 for node in &self.subnodes {
@@ -306,11 +308,15 @@ impl Node {
                     indent = level * 2
                 )?;
             }
-            NodeType::Heading { level, content } => {
+            NodeType::Heading {
+                level: lvl,
+                content,
+            } => {
                 write!(
                     f,
-                    "{:indent$}{}",
+                    "{:indent$}{} {}",
                     "",
+                    "#".repeat(*lvl),
                     content
                         .iter()
                         .map(|txt| txt.to_markdown())
@@ -350,16 +356,6 @@ mod tests {
 
     #[test]
     fn test_write_indented() {
-        // let node = Node::Document {
-        //     subnodes: vec![Node::Heading {
-        //         heading: Heading {
-        //             level: 1,
-        //             content: vec![Text::Plain("Heading".to_string())],
-        //         },
-        //         subnodes: vec![],
-        //     }],
-        // };
-
         let node = Node {
             node_type: NodeType::Document,
             subnodes: vec![Node {
