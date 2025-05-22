@@ -147,7 +147,10 @@ impl Node {
 
         Ok(Self {
             node_type: NodeType::Paragraph,
-            subnodes: txt_nodes,
+            subnodes: txt_nodes
+                .into_iter()
+                .map(|n| Rc::new(n))
+                .collect(),
         })
     }
 
@@ -210,7 +213,7 @@ impl Node {
     ) -> Result<Vec<Self>, &'static str> {
         let mut nodes = vec![];
 
-        let mut open_headings = Vec::<&mut Self>::new();
+        let mut open_headings = Vec::<Rc<Self>>::new();
 
         fn push_node(
             node: Node,
@@ -345,7 +348,7 @@ impl std::fmt::Display for Node {
 #[cfg(test)]
 mod tests {
     use std::vec;
-
+|
     use super::*;
 
     #[test]
@@ -368,7 +371,10 @@ mod tests {
                     content: vec![Text::Plain("Heading".to_string())],
                 },
                 subnodes: vec![],
-            }],
+            }]
+            .into_iter()
+            .map(|n| Rc::new(n))
+            .collect(),
         };
 
         let expected = "# Heading\n";
