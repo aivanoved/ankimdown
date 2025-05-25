@@ -324,18 +324,24 @@ mod tests {
         let nodes =
             Node::parse_nodes(&mut events.into_iter()).unwrap();
 
-        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes.len(), 1);
+
+        let heading = nodes[0].borrow();
 
         assert_eq!(
-            nodes[0].borrow().node_type,
+            heading.node_type,
             NodeType::Heading {
                 level: 1,
                 content: vec![Text::Plain("Heading".to_string())],
             }
         );
 
-        assert_eq!(nodes[1].borrow().node_type, NodeType::Paragraph);
+        assert_eq!(heading.subnodes.len(), 1);
 
-        assert_eq!(nodes[1].borrow().subnodes.len(), 5);
+        let paragraph = heading.subnodes.last().unwrap().borrow();
+
+        assert_eq!(paragraph.node_type, NodeType::Paragraph);
+
+        assert_eq!(paragraph.subnodes.len(), 5);
     }
 }
