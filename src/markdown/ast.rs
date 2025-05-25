@@ -228,7 +228,6 @@ impl Node {
 
         if let Some(lvl) = push_level {
             while let Some(last) = open_headings.last() {
-                println!("last: {:#?}", last);
                 match last.borrow().node_type {
                     NodeType::Heading { level, .. } => {
                         if level < lvl {
