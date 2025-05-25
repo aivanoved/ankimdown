@@ -20,9 +20,10 @@ a **greeting**
 "#;
 
     log_markdown_str(markdown_text);
-    let nodes =
-        Node::parse_nodes(&mut Parser::new(markdown_text)).unwrap();
-    println!("{:#?}", nodes);
+    let document =
+        Node::parse_document(&mut Parser::new(markdown_text))
+            .unwrap();
+    println!("{:#?}", document);
 }
 
 fn main() {

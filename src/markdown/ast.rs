@@ -299,63 +299,13 @@ impl Node {
         Ok(nodes)
     }
 
-    fn write_indented(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        level: usize,
-    ) -> std::fmt::Result {
-        match &self.node_type {
-            NodeType::Document => {
-                for node in &self.subnodes {
-                    node.borrow().write_indented(f, level)?;
-                }
-            }
-            NodeType::Text(txt) => {
-                write!(
-                    f,
-                    "{:indent$}{}",
-                    "",
-                    txt.to_markdown(),
-                    indent = level * 2
-                )?;
-            }
-            NodeType::Heading {
-                level: lvl,
-                content,
-            } => {
-                write!(
-                    f,
-                    "{:indent$}{} {}",
-                    "",
-                    "#".repeat(*lvl),
-                    content
-                        .iter()
-                        .map(|txt| txt.to_markdown())
-                        .collect::<Vec<_>>()
-                        .join(""),
-                    indent = level * 2
-                )?;
-                writeln!(f)?;
-                for node in &self.subnodes {
-                    node.borrow().write_indented(f, level + 1)?;
-                }
-            }
-            NodeType::Paragraph => {
-                for node in &self.subnodes {
-                    node.borrow().write_indented(f, level)?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl std::fmt::Display for Node {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
-        self.write_indented(f, 0)
+    pub fn parse_document(
+        events: &mut dyn Iterator<Item = pulldown_cmark::Event>,
+    ) -> Result<Self, &'static str> {
+        Ok(Self {
+            node_type: NodeType::Document,
+            subnodes: Self::parse_nodes(events)?,
+        })
     }
 }
 
@@ -364,28 +314,6 @@ mod tests {
     use super::*;
 
     use std::vec;
-
-    #[test]
-    fn test_write_indented() {
-        let node = Node {
-            node_type: NodeType::Document,
-            subnodes: vec![Node {
-                node_type: NodeType::Heading {
-                    level: 1,
-                    content: vec![Text::Plain("Heading".to_string())],
-                },
-                subnodes: vec![],
-            }]
-            .into_iter()
-            .map(|n| Rc::new(RefCell::new(n)))
-            .collect(),
-        };
-
-        let expected = "# Heading\n";
-
-        let output = format!("{}", node);
-        assert_eq!(output, expected);
-    }
 
     #[test]
     fn test_parse_events() {
