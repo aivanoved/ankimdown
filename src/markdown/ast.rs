@@ -220,22 +220,25 @@ impl Node {
     ) -> Result<(Vec<SharedNode>, Vec<SharedNode>), &'static str>
     {
         let push_level = match &node.node_type {
-            NodeType::Heading { level, .. } => *level,
-            _ => usize::MIN,
+            NodeType::Heading { level, .. } => Some(*level),
+            _ => None,
         };
 
         let rc_node = Rc::new(RefCell::new(node));
 
-        while let Some(last) = open_headings.last() {
-            match last.borrow().node_type {
-                NodeType::Heading { level, .. } => {
-                    if level < push_level {
-                        break;
+        if let Some(lvl) = push_level {
+            while let Some(last) = open_headings.last() {
+                println!("last: {:#?}", last);
+                match last.borrow().node_type {
+                    NodeType::Heading { level, .. } => {
+                        if level < lvl {
+                            break;
+                        }
                     }
-                }
-                _ => break,
-            };
-            open_headings.pop();
+                    _ => break,
+                };
+                open_headings.pop();
+            }
         }
 
         if open_headings.len() == 0 {
@@ -249,7 +252,7 @@ impl Node {
                 .push(rc_node);
         };
 
-        if push_level > usize::MIN {
+        if push_level.is_some() {
             if open_headings.len() == 0 {
                 open_headings.push(
                     nodes.last().ok_or("Should have pushed")?.clone(),
