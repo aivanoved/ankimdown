@@ -304,6 +304,8 @@ impl Node {
         f: &mut std::fmt::Formatter<'_>,
         level: usize,
     ) -> std::fmt::Result {
+        println!("{}", level);
+        println!("{:#?}", self.node_type);
         match &self.node_type {
             NodeType::Document => {
                 for node in &self.subnodes {
@@ -396,7 +398,10 @@ mod tests {
         let nodes =
             Node::parse_nodes(&mut events.into_iter()).unwrap();
 
-        assert_eq!(nodes.len(), 2);
+        println!("{:#?}", nodes);
+        println!(Node {}.write_indented())
+
+        assert_eq!(nodes.len(), 3);
 
         assert_eq!(
             nodes[0].borrow().node_type,
@@ -408,6 +413,9 @@ mod tests {
 
         assert_eq!(nodes[1].borrow().node_type, NodeType::Paragraph);
 
-        assert_eq!(nodes[1].borrow().subnodes.len(), 5);
+        assert_eq!(
+            nodes[1].borrow().subnodes.len(),
+            8 // "This", "is", "a", "paragraph", "with", "italic", "and", "bold"
+        );
     }
 }
