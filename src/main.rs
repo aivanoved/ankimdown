@@ -1,4 +1,6 @@
+use ankimdown::markdown::ast::Node;
 use ankimdown::markdown::util::log_markdown_str;
+use pulldown_cmark::Parser;
 
 #[allow(dead_code)]
 fn markdown_ast() {
@@ -15,12 +17,12 @@ fn markdown_parser() {
 # hello
 ## Meaning
 a **greeting**
-- 1
-- 2
-- 3
 "#;
 
     log_markdown_str(markdown_text);
+    let nodes =
+        Node::parse_nodes(&mut Parser::new(markdown_text)).unwrap();
+    println!("{:#?}", nodes);
 }
 
 fn main() {

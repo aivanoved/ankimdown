@@ -220,8 +220,8 @@ impl Node {
     ) -> Result<(Vec<SharedNode>, Vec<SharedNode>), &'static str>
     {
         let push_level = match &node.node_type {
-            NodeType::Heading { level, .. } => Some(*level),
-            _ => None,
+            NodeType::Heading { level, .. } => *level,
+            _ => usize::MIN,
         };
 
         let rc_node = Rc::new(RefCell::new(node));
@@ -229,7 +229,7 @@ impl Node {
         while let Some(last) = open_headings.last() {
             match last.borrow().node_type {
                 NodeType::Heading { level, .. } => {
-                    if level < push_level.unwrap_or(0) {
+                    if level < push_level {
                         break;
                     }
                 }
@@ -238,37 +238,35 @@ impl Node {
             open_headings.pop();
         }
 
-        match open_headings.len() {
-            0 => nodes.push(rc_node),
-            _ => {
-                open_headings
-                    .last_mut()
-                    .ok_or("No last element")?
-                    .borrow_mut()
-                    .subnodes
-                    .push(rc_node);
-            }
+        if open_headings.len() == 0 {
+            nodes.push(rc_node);
+        } else {
+            open_headings
+                .last_mut()
+                .ok_or("No last element")?
+                .borrow_mut()
+                .subnodes
+                .push(rc_node);
         };
 
-        if push_level.is_some() {
-            match open_headings.len() {
-                0usize => open_headings.push(
+        if push_level > usize::MIN {
+            if open_headings.len() == 0 {
+                open_headings.push(
                     nodes.last().ok_or("Should have pushed")?.clone(),
-                ),
-                _ => {
-                    let size = open_headings.len();
-                    let sub_size = open_headings[size - 1]
-                        .borrow_mut()
-                        .subnodes
-                        .len();
-                    let node = open_headings[size - 1]
-                        .borrow()
-                        .subnodes[sub_size - 1]
-                        .clone();
-                    open_headings.push(node)
-                }
+                );
+            } else {
+                let node = open_headings
+                    .last()
+                    .unwrap()
+                    .borrow()
+                    .subnodes
+                    .last()
+                    .unwrap()
+                    .clone();
+                open_headings.push(node)
             }
         }
+
         Ok((nodes, open_headings))
     }
 
