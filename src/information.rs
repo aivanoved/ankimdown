@@ -1,4 +1,4 @@
-use crate::ankigen::db_model::card::Card;
+use crate::db_model::card::Card;
 use crate::markdown::ast::Node;
 
 type Example = Vec<String>;
