@@ -1,5 +1,3 @@
-use crate::ankigen::information::SimpleInformation;
-
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DeckAutoMeta {
@@ -18,7 +16,6 @@ struct Deck {
     name: String,
     description: String,
     metadata: DeckMeta,
-    information: Vec<SimpleInformation>,
 }
 
 #[cfg(test)]
