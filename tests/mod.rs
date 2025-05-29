@@ -1,2 +1,1 @@
-mod ankigen;
-mod markdown;
+mod db_model;

@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::ankigen::db_model::table::Table;
+use crate::db_model::table::Table;
 
-#[derive(Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq)]
+#[derive(
+    Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq,
+)]
 #[repr(u8)]
 pub enum CardType {
     New = 0,
@@ -12,7 +14,9 @@ pub enum CardType {
     Relearning = 3,
 }
 
-#[derive(Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq)]
+#[derive(
+    Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq,
+)]
 #[repr(i8)]
 pub enum CardQueue {
     UserSuspended = -3,
@@ -25,7 +29,9 @@ pub enum CardQueue {
     Preview = 4,
 }
 
-#[derive(Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq)]
+#[derive(
+    Debug, Clone, Serialize_repr, Deserialize_repr, PartialEq,
+)]
 #[repr(u8)]
 pub enum CardFlag {
     Null = 0,
