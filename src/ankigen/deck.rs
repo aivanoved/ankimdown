@@ -43,11 +43,9 @@ mod tests {
             metadata: DeckMeta {
                 autogen: DeckAutoMeta { id: 1 },
             },
-            information: vec![],
         };
         assert_eq!(deck.name, "Test Deck");
         assert_eq!(deck.description, "This is a test deck");
         assert_eq!(deck.metadata.autogen.id, 1);
-        assert_eq!(deck.information.len(), 0);
     }
 }
