@@ -1,6 +1,6 @@
-use ankimdown::ankigen::db_model::collection::*;
-use ankimdown::ankigen::db_model::deck::{Deck, DeckConfig};
-use ankimdown::ankigen::db_model::model::{Model, ModelType};
+use ankimdown::db_model::collection::*;
+use ankimdown::db_model::deck::{Deck, DeckConfig};
+use ankimdown::db_model::model::{Model, ModelType};
 
 fn create_test_model() -> Model {
     Model::new(
@@ -26,17 +26,20 @@ fn create_test_deck_config() -> DeckConfig {
 fn test_new_spread_serialization() {
     let new_spread = NewSpread::NewCardsDistribute;
     let serialized = serde_json::to_string(&new_spread).unwrap();
-    let deserialized: NewSpread = serde_json::from_str(&serialized).unwrap();
+    let deserialized: NewSpread =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(new_spread, deserialized);
 
     let new_spread = NewSpread::NewCardsLast;
     let serialized = serde_json::to_string(&new_spread).unwrap();
-    let deserialized: NewSpread = serde_json::from_str(&serialized).unwrap();
+    let deserialized: NewSpread =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(new_spread, deserialized);
 
     let new_spread = NewSpread::NewCardsFirst;
     let serialized = serde_json::to_string(&new_spread).unwrap();
-    let deserialized: NewSpread = serde_json::from_str(&serialized).unwrap();
+    let deserialized: NewSpread =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(new_spread, deserialized);
 }
 
@@ -63,7 +66,8 @@ fn test_collection_config() {
 fn test_collection_config_serialization() {
     let config = CollectionConfig::new();
     let serialized = serde_json::to_string(&config).unwrap();
-    let deserialized: CollectionConfig = serde_json::from_str(&serialized).unwrap();
+    let deserialized: CollectionConfig =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(config.current_deck, deserialized.current_deck);
     assert_eq!(config.active_decks, deserialized.active_decks);
 }
@@ -82,7 +86,10 @@ fn test_collection() {
     assert_eq!(collection.config, CollectionConfig::new());
     assert_eq!(collection.models, Vec::<(usize, Model)>::new());
     assert_eq!(collection.decks, Vec::<(usize, Deck)>::new());
-    assert_eq!(collection.deck_configs, Vec::<(usize, DeckConfig)>::new());
+    assert_eq!(
+        collection.deck_configs,
+        Vec::<(usize, DeckConfig)>::new()
+    );
     assert_eq!(collection.tags, "");
 }
 
@@ -104,15 +111,25 @@ fn test_collection_serialization() {
         tags: String::new(),
     };
     let serialized = serde_json::to_string(&collection).unwrap();
-    let deserialized: Collection = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Collection =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(collection.id, deserialized.id);
     assert_eq!(collection.created, deserialized.created);
     assert_eq!(collection.modified, deserialized.modified);
-    assert_eq!(collection.scheme_mod_time, deserialized.scheme_mod_time);
+    assert_eq!(
+        collection.scheme_mod_time,
+        deserialized.scheme_mod_time
+    );
     assert_eq!(collection.version, deserialized.version);
     assert_eq!(collection.dirty, deserialized.dirty);
-    assert_eq!(collection.update_seq_number, deserialized.update_seq_number);
-    assert_eq!(collection.last_sync_time, deserialized.last_sync_time);
+    assert_eq!(
+        collection.update_seq_number,
+        deserialized.update_seq_number
+    );
+    assert_eq!(
+        collection.last_sync_time,
+        deserialized.last_sync_time
+    );
     assert_eq!(collection.config, deserialized.config);
     assert_eq!(collection.models.len(), deserialized.models.len());
     assert_eq!(collection.models[0].0, deserialized.models[0].0);
@@ -124,7 +141,13 @@ fn test_collection_serialization() {
         collection.deck_configs.len(),
         deserialized.deck_configs.len()
     );
-    assert_eq!(collection.deck_configs[0].0, deserialized.deck_configs[0].0);
-    assert_eq!(collection.deck_configs[0].1, deserialized.deck_configs[0].1);
+    assert_eq!(
+        collection.deck_configs[0].0,
+        deserialized.deck_configs[0].0
+    );
+    assert_eq!(
+        collection.deck_configs[0].1,
+        deserialized.deck_configs[0].1
+    );
     assert_eq!(collection.tags, deserialized.tags);
 }

@@ -1,4 +1,4 @@
-use ankimdown::ankigen::db_model::deck::*;
+use ankimdown::db_model::deck::*;
 use serde_json::json;
 
 #[test]
@@ -43,7 +43,8 @@ fn test_deck_serialize() {
         "desc": ""
     });
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&serialized).unwrap(),
+        serde_json::from_str::<serde_json::Value>(&serialized)
+            .unwrap(),
         expected
     );
 }
@@ -177,7 +178,8 @@ fn test_deck_config_serialize() {
         "usn": 0
     });
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&serialized).unwrap(),
+        serde_json::from_str::<serde_json::Value>(&serialized)
+            .unwrap(),
         expected
     );
 }
@@ -220,7 +222,8 @@ fn test_deck_config_deserialize() {
         "timer": false,
         "usn": 0
     });
-    let deck_config: DeckConfig = serde_json::from_value(data).unwrap();
+    let deck_config: DeckConfig =
+        serde_json::from_value(data).unwrap();
     assert_eq!(deck_config.name, "Test Deck");
     assert!(!deck_config.autoplay);
     assert_eq!(deck_config.filtered, None);

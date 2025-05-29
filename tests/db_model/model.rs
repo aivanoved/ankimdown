@@ -1,4 +1,4 @@
-use ankimdown::ankigen::db_model::model::*;
+use ankimdown::db_model::model::*;
 
 #[test]
 fn test_model_field() {
@@ -14,7 +14,11 @@ fn test_model_field() {
 
 #[test]
 fn test_model_template() {
-    let template = ModelTemplate::new("test".to_string(), "test".to_string(), "test".to_string());
+    let template = ModelTemplate::new(
+        "test".to_string(),
+        "test".to_string(),
+        "test".to_string(),
+    );
     assert_eq!(template.answer_template, "test");
     assert_eq!(template.browser_answer_template, "");
     assert_eq!(template.browser_question_format, "");
@@ -88,6 +92,7 @@ fn test_serialize() {
         ModelType::FrontBack,
     );
     let serialized = serde_json::to_string(&model).unwrap();
-    let deserialized: Model = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Model =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(model, deserialized);
 }

@@ -1,4 +1,4 @@
-use ankimdown::ankigen::db_model::card::*;
+use ankimdown::db_model::card::*;
 
 #[test]
 fn test_card_flag() {
@@ -72,6 +72,7 @@ fn test_card_serialization() {
         CardFlag::Null,
     );
     let serialized = serde_json::to_string(&card).unwrap();
-    let deserialized: Card = serde_json::from_str(&serialized).unwrap();
+    let deserialized: Card =
+        serde_json::from_str(&serialized).unwrap();
     assert_eq!(card, deserialized);
 }
